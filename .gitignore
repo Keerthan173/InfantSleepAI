@@ -1,0 +1,60 @@
+# Python related
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+ENV/
+env.bak/
+*.sqlite3
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+*.log
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Data files (large or sensitive)
+data/
+*.csv
+*.h5
+*.hdf5
+*.pkl
+*.pth
+*.pt
+
+# node modules (React frontend)
+node_modules/
+
+# production build
+dist/
+build/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# dotenv environment variables
+.env
+.env.local
+.env.*.local
+
+# FastAPI gunicorn logs and caches
+*.log
+*.cache/
+
+# Others - npm package-lock, yarn lock
+package-lock.json
+yarn.lock
+
+new_patient_epochs/
