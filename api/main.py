@@ -1,17 +1,17 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Optional
-import joblib
+import joblib       # loads your trained ML model
 import pandas as pd
 from fastapi.middleware.cors import CORSMiddleware
 
+# Create the FastAPI app
 app = FastAPI(title="Apnea Alert API")
 
-# Add CORS middleware
+# Add CORS middleware to allow frontend requests
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    # other origins as needed
 ]
 
 app.add_middleware(
@@ -26,7 +26,7 @@ app.add_middleware(
 xgb_model = joblib.load('models/xgboost_balanced_model.pkl')
 alerts_df = pd.read_csv('data/consolidated_xgboost_alerts.csv')
 
-# Correct expected feature columns in exact training order
+# Expected feature columns in exact training order
 expected_features = [
     'mean', 'std', 'min', 'max', 'median',
     'skewness', 'kurtosis',
@@ -34,16 +34,48 @@ expected_features = [
     'app_entropy', 'sample_entropy'
 ]
 
-class NamedFeatureRequest(BaseModel):
-    features: Dict[str, float]
+
+# Root route (just for testing)
+@app.get("/")
+def home():
+    return {"message": "Backend running successfully!"}
+
 
 @app.get("/health")
 def health_check():
     return {"status": "OK"}
 
+
+
+# Dummy users (replace later with DB check)
+users_db = {
+    "caregiver1": {"password": "care123", "role": "caregiver"},
+    "clinician1": {"password": "clin123", "role": "clinician"},
+    "admin1": {"password": "admin123", "role": "admin"},
+}
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    
+@app.post("/login")
+def login(request: LoginRequest):
+    user = users_db.get(request.username)
+    if not user or user["password"] != request.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {"message": "Login successful", "role": user["role"]}
+
+
+
+class NamedFeatureRequest(BaseModel):
+    features: Dict[str, float]
+    
+
+# Prediction endpoint
 @app.post("/predict")
 def predict_apnea_named(feature_request: NamedFeatureRequest):
     input_features = feature_request.features
+    # Check for missing features
     missing = [f for f in expected_features if f not in input_features]
     if missing:
         raise HTTPException(status_code=400, detail=f"Missing features: {missing}")
@@ -54,7 +86,7 @@ def predict_apnea_named(feature_request: NamedFeatureRequest):
 
     try:
         preds = xgb_model.predict(features_df)[0]
-        proba = xgb_model.predict_proba(features_df).max()
+        proba = xgb_model.predict_proba(features_df).max()  # probabilities for each class
         label_map = {0: "Normal", 1: "Pre-apnea Warning", 2: "Apnea"}
         return {"prediction": label_map[preds], "confidence": float(proba)}
 
