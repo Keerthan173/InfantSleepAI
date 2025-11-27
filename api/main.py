@@ -94,6 +94,13 @@ def predict_apnea_named(feature_request: NamedFeatureRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/alerts")
-def get_apnea_alerts(limit: Optional[int] = 10):
-    recent_alerts = alerts_df.tail(limit).to_dict(orient="records")
+def get_apnea_alerts(limit: Optional[int] = 50):
+    # Load features CSV
+    df = pd.read_csv('data/combined/features_advanced_predictions.csv')
+    
+    # Filter to show only Apnea (2) and Warnings (1)
+    alert_df = df[df['predicted_label'].isin([1, 2])]
+    
+    # Get most recent alerts
+    recent_alerts = alert_df.tail(limit).to_dict(orient="records")
     return recent_alerts

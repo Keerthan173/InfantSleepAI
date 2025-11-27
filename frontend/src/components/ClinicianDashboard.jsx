@@ -163,6 +163,7 @@ function PatientDetailModal({ patient, onClose, onUpdate, onDelete }) {
   const [editData, setEditData] = useState(patient);
   const [alerts, setAlerts] = useState([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
+  const [expandedAlert, setExpandedAlert] = useState(null);
 
   useEffect(() => {
     fetchPatientAlerts();
@@ -232,6 +233,15 @@ function PatientDetailModal({ patient, onClose, onUpdate, onDelete }) {
     } else {
       return <span className="badge bg-success">Normal</span>;
     }
+  };
+
+  const formatDuration = (epochs) => {
+    if (!epochs) return "N/A";
+    const seconds = epochs * 30;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes === 0) return `${seconds}s`;
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
   };
 
   return (
@@ -421,23 +431,168 @@ function PatientDetailModal({ patient, onClose, onUpdate, onDelete }) {
                       </div>
                     ) : (
                       <div className="list-group list-group-flush">
-                        {alerts.map((alert, index) => (
-                          <div key={index} className="list-group-item">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              {getSeverityBadge(alert.prediction)}
-                              <small className="text-muted">
-                                {alert.timestamp ? new Date(alert.timestamp).toLocaleString() : "N/A"}
-                              </small>
-                            </div>
-                            <div className="small">
-                              <span className="badge bg-secondary me-1">Mean: {alert.mean?.toFixed(3)}</span>
-                              <span className="badge bg-secondary me-1">Std: {alert.std?.toFixed(3)}</span>
-                              {alert.confidence && (
-                                <span className="badge bg-info">Conf: {(alert.confidence * 100).toFixed(1)}%</span>
+                        {alerts.map((alert, index) => {
+                          const isExpanded = expandedAlert === index;
+                          const isApnea = alert.prediction === "Apnea" || alert.prediction === 2 || alert.predicted_label === 2;
+                          const isWarning = alert.prediction === "Pre-apnea Warning" || alert.prediction === 1 || alert.predicted_label === 1;
+                          
+                          return (
+                            <div 
+                              key={index} 
+                              className={`list-group-item ${
+                                isApnea ? "border-start border-danger border-4" : 
+                                isWarning ? "border-start border-warning border-4" : ""
+                              }`}
+                            >
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                  {getSeverityBadge(alert.prediction || alert.predicted_label)}
+                                  {alert.duration_epochs && (
+                                    <span className="badge bg-secondary ms-2">
+                                      Duration: {formatDuration(alert.duration_epochs)}
+                                    </span>
+                                  )}
+                                  {alert.epoch && (
+                                    <span className="badge bg-info ms-2">
+                                      Epoch: {alert.epoch}
+                                    </span>
+                                  )}
+                                </div>
+                                <small className="text-muted">
+                                  {alert.timestamp ? new Date(alert.timestamp).toLocaleString() : "N/A"}
+                                </small>
+                              </div>
+                              
+                              {/* Quick Stats */}
+                              <div className="mb-2">
+                                <div className="row g-1">
+                                  <div className="col-6">
+                                    <small className="text-muted">Signal Stats:</small>
+                                    <div className="d-flex flex-wrap gap-1 mt-1">
+                                      <span className="badge bg-secondary" style={{ fontSize: "0.7rem" }}>
+                                        Mean: {alert.mean?.toFixed(4) || "N/A"}
+                                      </span>
+                                      <span className="badge bg-secondary" style={{ fontSize: "0.7rem" }}>
+                                        Std: {alert.std?.toFixed(4) || "N/A"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="col-6 text-end">
+                                    {(alert.confidence || alert.predicted_prob) && (
+                                      <div>
+                                        <small className="text-muted d-block">Confidence:</small>
+                                        <div className="progress mt-1" style={{ height: "18px" }}>
+                                          <div
+                                            className={`progress-bar ${
+                                              isApnea ? "bg-danger" : 
+                                              isWarning ? "bg-warning" : "bg-success"
+                                            }`}
+                                            style={{ width: `${((alert.confidence || alert.predicted_prob) * 100)}%` }}
+                                          >
+                                            <small>{((alert.confidence || alert.predicted_prob) * 100).toFixed(1)}%</small>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Expand/Collapse Button */}
+                              <button 
+                                className="btn btn-sm btn-outline-secondary w-100"
+                                onClick={() => setExpandedAlert(isExpanded ? null : index)}
+                              >
+                                {isExpanded ? "Hide Details ▲" : "Show Full Details ▼"}
+                              </button>
+
+                              {/* Expanded Details */}
+                              {isExpanded && (
+                                <div className="mt-3 p-3 bg-light rounded">
+                                  <div className="row g-3">
+                                    <div className="col-md-6">
+                                      <h6 className="text-primary mb-2">Statistical Features</h6>
+                                      <table className="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                          <tr>
+                                            <td className="fw-semibold">Mean:</td>
+                                            <td>{alert.mean?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Std Dev:</td>
+                                            <td>{alert.std?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Min:</td>
+                                            <td>{alert.min?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Max:</td>
+                                            <td>{alert.max?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Median:</td>
+                                            <td>{alert.median?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+
+                                    <div className="col-md-6">
+                                      <h6 className="text-primary mb-2">Distribution Features</h6>
+                                      <table className="table table-sm table-borderless mb-3">
+                                        <tbody>
+                                          <tr>
+                                            <td className="fw-semibold">Skewness:</td>
+                                            <td>{alert.skewness?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Kurtosis:</td>
+                                            <td>{alert.kurtosis?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+
+                                      <h6 className="text-primary mb-2">Frequency Domain</h6>
+                                      <table className="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                          <tr>
+                                            <td className="fw-semibold">Power VLF:</td>
+                                            <td>{alert.power_vlf?.toExponential(3) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Power LF:</td>
+                                            <td>{alert.power_lf?.toExponential(3) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Power HF:</td>
+                                            <td>{alert.power_hf?.toExponential(3) || "N/A"}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+
+                                    <div className="col-12">
+                                      <h6 className="text-primary mb-2">Entropy Measures</h6>
+                                      <table className="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                          <tr>
+                                            <td className="fw-semibold">Approximate Entropy:</td>
+                                            <td>{alert.app_entropy?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="fw-semibold">Sample Entropy:</td>
+                                            <td>{alert.sample_entropy?.toFixed(6) || "N/A"}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </div>
                               )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
