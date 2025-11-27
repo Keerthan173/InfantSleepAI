@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const sampleFeatures = {
+const sampleFeatures = {        // A default set of example input values(autofill-option)
   mean: -0.0254,
   std: 0.4431,
   min: -0.515,
